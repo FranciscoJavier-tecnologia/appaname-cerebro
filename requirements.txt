@@ -1,0 +1,13 @@
+# Archivo de dependencias de Python (pip install -r requirements.txt)
+
+# --- Para hacer peticiones HTTP (el "hacker" de red) ---
+requests
+
+# --- Para parsear HTML (el "extractor" de datos) ---
+beautifulsoup4
+
+# --- Para validar nuestros datos contra el "Plano" (Repo C) ---
+jsonschema
+
+# --- Para manejar variables de entorno (ej. llaves de API) ---
+python-dotenv

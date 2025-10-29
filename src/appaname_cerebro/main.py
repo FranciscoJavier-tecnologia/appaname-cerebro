@@ -7,9 +7,9 @@ import os
 from appaname_cerebro.parsers import bancochile_v1
 
 # --- Configuración "Brutal" - PLAN B ---
-# Ruta al "Mapa" local
+# Ruta al "Mapa" local (sube 3 niveles desde src/appaname_cerebro/main.py)
 LOCAL_TARGETS_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'appaname-mapa', 'targets.json'))
-# ¡NUEVO! Ruta a la "Bóveda" local (Repo C)
+# Ruta a la "Bóveda" local (Repo C)
 LOCAL_VAULT_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'appaname-catalogo', 'data', 'by-issuer'))
 
 
@@ -18,6 +18,7 @@ REQUEST_HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
 }
 
+# Configuración de Logging (Neutral)
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
@@ -32,11 +33,12 @@ def fetch_targets(file_path: str) -> list[dict]:
     try:
         if not os.path.exists(file_path):
              logger.error(f"¡ERROR CRÍTICO! No se encontró el archivo local: {file_path}")
+             logger.error("Asegúrate de que targets.json esté en la carpeta 'appaname-mapa'.")
              return []
-
+        
         with open(file_path, 'r', encoding='utf-8') as f:
             targets = json.load(f)
-
+        
         logger.info(f"Mapa local leído. {len(targets)} emisores (targets) encontrados.")
         return targets
     except json.JSONDecodeError as e:
@@ -46,24 +48,20 @@ def fetch_targets(file_path: str) -> list[dict]:
          logger.error(f"¡ERROR CRÍTICO! No se pudo leer el archivo local: {e}")
          return []
 
-# --- ¡NUEVA FUNCIÓN PARA GUARDAR EL BOTÍN! ---
+# --- Función para GUARDAR EL BOTÍN ---
 def save_booty_to_vault(issuer_id: str, benefits: list, vault_path: str):
     """Guarda la lista de beneficios en el archivo JSON correspondiente en la Bóveda (Repo C)."""
     if not benefits:
         logger.warning(f"No hay botín para guardar para {issuer_id}.")
         return
 
-    # Asegurarse de que la carpeta de la bóveda exista
     os.makedirs(vault_path, exist_ok=True)
-
     file_name = f"{issuer_id}.json"
     file_path = os.path.join(vault_path, file_name)
-
     logger.info(f"Guardando {len(benefits)} beneficios para '{issuer_id}' en: {file_path}")
-
+    
     try:
         with open(file_path, 'w', encoding='utf-8') as f:
-            # Escribimos el JSON bonito (indentado)
             json.dump(benefits, f, ensure_ascii=False, indent=2) 
         logger.info(f"¡ÉXITO! Botín para '{issuer_id}' guardado.")
     except Exception as e:
@@ -71,9 +69,9 @@ def save_booty_to_vault(issuer_id: str, benefits: list, vault_path: str):
 
 
 def run_engine():
-    """El orquestador principal del "Cerebro Maléfico" v2.7 (Plan B - Con Guardado)."""
-    logger.info("--- [Cerebro Maléfico (Repo B) v2.7 INICIADO - MODO LOCAL] ---")
-
+    """El orquestador principal del "Cerebro" v2.7 (Plan B - Con Guardado)."""
+    logger.info("--- [Cerebro (Repo B) v2.7 INICIADO - MODO LOCAL] ---")
+    
     targets = fetch_targets(LOCAL_TARGETS_PATH) 
     if not targets:
         logger.warning("No hay objetivos para procesar. Apagando.")
@@ -90,19 +88,18 @@ def run_engine():
         if not issuer_id or not strategy:
             logger.warning(f"Emisor inválido, saltando: {target}")
             continue
-
+            
         logger.info(f"--- Procesando Emisor: '{issuer_id}' (Segmento: {segment}) ---")
-
+        
         if strategy not in PARSER_MAP:
             logger.warning(f"Estrategia de extracción '{strategy}' NO ENCONTRADA. Saltando emisor.")
             continue
-
+        
         parser_function = PARSER_MAP[strategy]
         logger.info(f"Usando extractor: '{strategy}' (Función: {parser_function.__name__})")
 
-        # Botín para este emisor específico
         botin_total_emisor = []
-
+        
         for source in sources:
             source_id = source.get('source_id')
             source_url = source.get('url')
@@ -113,11 +110,11 @@ def run_engine():
                 continue
 
             logger.info(f"  -> Procesando fuente: '{source_id}' | Pista: {category_hint}")
-
+            
             try:
                 time.sleep(1) 
                 botin_parcial = parser_function(source_url, category_hint, headers=REQUEST_HEADERS) 
-
+                
                 if botin_parcial:
                     logger.info(f"  -> ÉXITO. {len(botin_parcial)} beneficios encontrados en esta fuente.")
                     botin_total_emisor.extend(botin_parcial)
@@ -126,16 +123,15 @@ def run_engine():
 
             except Exception as e:
                 logger.error(f"  -> ¡FALLO EXTRACCIÓN en '{source_id}'! Error: {e}")
-
+            
         if botin_total_emisor:
             logger.info(f"Total para '{issuer_id}': {len(botin_total_emisor)} beneficios.")
-            # --- ¡AQUÍ GUARDAMOS EL BOTÍN! ---
             save_booty_to_vault(issuer_id, botin_total_emisor, LOCAL_VAULT_PATH)
             botin_total_general.extend(botin_total_emisor)
         else:
             logger.info(f"Total para '{issuer_id}': 0 beneficios.")
-
-    logger.info("--- [Cerebro Maléfico (Repo B) v2.7 FINALIZADO - MODO LOCAL] ---")
+        
+    logger.info("--- [Cerebro (Repo B) v2.7 FINALIZADO - MODO LOCAL] ---")
     logger.info(f"Botín Total General Encontrado: {len(botin_total_general)} beneficios.")
 
 

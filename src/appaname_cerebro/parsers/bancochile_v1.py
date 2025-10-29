@@ -56,7 +56,7 @@ def scrape_detail_page(detail_url: str, headers: dict) -> Dict:
         response.raise_for_status()
         logger.info(f"      -> Conexión detalle OK (200). Analizando...")
         soup = BeautifulSoup(response.text, 'html.parser')
-
+        
         # --- Extraer Título Detalle ---
         title_element = soup.select_one(DETAIL_TITLE_SELECTOR) 
         details["detail_title"] = safe_get_text(title_element)
@@ -64,7 +64,7 @@ def scrape_detail_page(detail_url: str, headers: dict) -> Dict:
              logger.info(f"        -> Título detalle (h2.beneficio-title): '{details['detail_title']}'")
         else:
              logger.warning(f"        -> No se encontró título de detalle con selector '{DETAIL_TITLE_SELECTOR}'")
-
+        
         # --- Extraer Vigencia ---
         validity_element = soup.select_one(DETAIL_VIGENCIA_SELECTOR)
         details["validity_text"] = safe_get_text(validity_element)
@@ -84,11 +84,11 @@ def scrape_detail_page(detail_url: str, headers: dict) -> Dict:
             for card in location_cards:
                 address_element = card.select_one(DETAIL_LOCATION_ADDRESS_SELECTOR)
                 commune_element = card.select_one(DETAIL_LOCATION_COMMUNE_SELECTOR)
-
+                
                 address = safe_get_text(address_element)
                 commune = safe_get_text(commune_element)
                 full_address = f"{address}, {commune}" if address and commune else address
-
+                
                 if full_address:
                     logger.info(f"        -> Ubicación encontrada: '{full_address}'")
                     details["locations"].append({
@@ -98,7 +98,7 @@ def scrape_detail_page(detail_url: str, headers: dict) -> Dict:
                     })
         else:
             logger.warning(f"        -> No se encontraron tarjetas de ubicación con '{DETAIL_LOCATION_CARD_SELECTOR}'")
-
+        
         return details
     except requests.exceptions.RequestException as e:
         logger.error(f"      -> Error de conexión en detalle: {e}")
@@ -119,7 +119,7 @@ def parse(source_url: str, category_hint: str, headers: dict = None) -> List[Dic
          return []
 
     extracted_benefits = []
-
+    
     # --- Lógica de Selección Adaptativa ---
     card_selector = CARD_SELECTOR_BASE 
     if "/mascotas" in source_url:
@@ -134,7 +134,7 @@ def parse(source_url: str, category_hint: str, headers: dict = None) -> List[Dic
         title_selector = MASCOTAS_TITLE_SELECTOR 
         discount_selector = MASCOTAS_DISCOUNT_SELECTOR
         logger.warning(f"    -> URL no reconocida. Usando selectores por defecto (Patrón 1).")
-
+        
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True) 
         context = browser.new_context(user_agent=headers.get('User-Agent') if headers else None)
@@ -156,7 +156,7 @@ def parse(source_url: str, category_hint: str, headers: dict = None) -> List[Dic
 
             if not benefit_cards:
                 logger.warning("  -> No se encontraron tarjetas.")
-
+            
             for card_link in benefit_cards:
                 title_element = card_link.select_one(title_selector) 
                 discount_element = card_link.select_one(discount_selector) 
@@ -166,11 +166,11 @@ def parse(source_url: str, category_hint: str, headers: dict = None) -> List[Dic
                     list_title = safe_get_text(title_element)
                     list_discount_text = safe_get_text(discount_element)
                     detail_url_absolute = urljoin(source_url, detail_url_relative) 
-
+                    
                     logger.info(f"    * Título: '{list_title}' | Dcto: '{list_discount_text}'")
-
+                    
                     detail_info = scrape_detail_page(detail_url_absolute, headers)
-
+                    
                     # --- Mapeo a Schema v1.0 (Más completo) ---
                     benefit_data = {
                         "issuer_id": "banco_de_chile",
@@ -207,3 +207,4 @@ def parse(source_url: str, category_hint: str, headers: dict = None) -> List[Dic
 
     logger.info(f"  -> Extracción completada para {source_url}. {len(extracted_benefits)} beneficios encontrados.")
     return extracted_benefits
+    

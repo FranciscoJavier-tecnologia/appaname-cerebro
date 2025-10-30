@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 BenefitSchema = dict # Placeholder
 
 # --- Constantes Playwright ---
-WAIT_FOR_SELECTOR_TIMEOUT = 15000 # 15 segundos
+WAIT_FOR_SELECTOR_TIMEOUT = 30000 # 30 segundos
 
 # --- Selectores CSS Refinados (¡Tu Inteligencia!) ---
 CARD_SELECTOR_BASE = "a.card.group.border-gray-background" 

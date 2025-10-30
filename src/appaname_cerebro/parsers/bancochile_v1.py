@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 BenefitSchema = dict # Placeholder
 
 # --- Constantes Playwright ---
-WAIT_FOR_SELECTOR_TIMEOUT = 15000 # 15 segundos
+WAIT_FOR_SELECTOR_TIMEOUT = 45000 # 45 segundos 
 
 # --- Selectores CSS Refinados (¡Tu Inteligencia!) ---
 CARD_SELECTOR_BASE = "a.card.group.border-gray-background" 
@@ -43,7 +43,7 @@ def safe_get_attribute(element: Optional[Tag], attribute: str) -> Optional[str]:
 # --- Nivel 2: Scraping Detalle (¡Ahora con esteroides!) ---
 def scrape_detail_page(detail_url: str, headers: dict) -> Dict:
     """Intenta extraer info de detalle usando requests."""
-    logger.info(f"    -> [Nivel 2] Procesando detalle: {detail_url}")
+    logger.info(f"     -> [Nivel 2] Procesando detalle: {detail_url}")
     details = {
         "detail_title": None,
         "rules": [], # Lista para reglas
@@ -54,16 +54,16 @@ def scrape_detail_page(detail_url: str, headers: dict) -> Dict:
         time.sleep(0.7) 
         response = requests.get(detail_url, headers=headers, timeout=20) 
         response.raise_for_status()
-        logger.info(f"      -> Conexión detalle OK (200). Analizando...")
+        logger.info(f"       -> Conexión detalle OK (200). Analizando...")
         soup = BeautifulSoup(response.text, 'html.parser')
         
         # --- Extraer Título Detalle ---
         title_element = soup.select_one(DETAIL_TITLE_SELECTOR) 
         details["detail_title"] = safe_get_text(title_element)
         if details["detail_title"]:
-             logger.info(f"        -> Título detalle (h2.beneficio-title): '{details['detail_title']}'")
+             logger.info(f"         -> Título detalle (h2.beneficio-title): '{details['detail_title']}'")
         else:
-             logger.warning(f"        -> No se encontró título de detalle con selector '{DETAIL_TITLE_SELECTOR}'")
+             logger.warning(f"         -> No se encontró título de detalle con selector '{DETAIL_TITLE_SELECTOR}'")
         
         # --- Extraer Vigencia ---
         validity_element = soup.select_one(DETAIL_VIGENCIA_SELECTOR)
@@ -74,9 +74,18 @@ def scrape_detail_page(detail_url: str, headers: dict) -> Dict:
         if rules_container:
             rules_list = rules_container.select("li") # Buscamos todos los <li> dentro del <ul>
             details["rules"] = [safe_get_text(rule) for rule in rules_list if safe_get_text(rule)]
-            logger.info(f"        -> {len(details['rules'])} reglas encontradas.")
+            logger.info(f"         -> {len(details['rules'])} reglas encontradas.")
         else:
-            logger.warning(f"        -> No se encontró contenedor de reglas con '{DETAIL_RULES_CONTAINER_SELECTOR}'")
+             # Probamos un selector alternativo si el <ul> no existe
+            alt_rules_container = soup.select_one("div.text-gray.mb-5")
+            if alt_rules_container:
+                # Tomamos todos los <p> dentro de este div
+                rules_list = alt_rules_container.select("p")
+                details["rules"] = [safe_get_text(rule) for rule in rules_list if safe_get_text(rule)]
+                logger.info(f"         -> {len(details['rules'])} reglas encontradas (con selector alternativo 'div.text-gray.mb-5 p').")
+            else:
+                logger.warning(f"         -> No se encontró contenedor de reglas con '{DETAIL_RULES_CONTAINER_SELECTOR}' ni alternativo.")
+
 
         # --- Extraer Ubicaciones ---
         location_cards = soup.select(DETAIL_LOCATION_CARD_SELECTOR)
@@ -90,28 +99,28 @@ def scrape_detail_page(detail_url: str, headers: dict) -> Dict:
                 full_address = f"{address}, {commune}" if address and commune else address
                 
                 if full_address:
-                    logger.info(f"        -> Ubicación encontrada: '{full_address}'")
+                    logger.info(f"         -> Ubicación encontrada: '{full_address}'")
                     details["locations"].append({
                         "address": full_address,
                         "lat": None, # Geocoding pendiente
                         "lon": None  # Geocoding pendiente
                     })
         else:
-            logger.warning(f"        -> No se encontraron tarjetas de ubicación con '{DETAIL_LOCATION_CARD_SELECTOR}'")
+            logger.warning(f"         -> No se encontraron tarjetas de ubicación con '{DETAIL_LOCATION_CARD_SELECTOR}'")
         
         return details
     except requests.exceptions.RequestException as e:
-        logger.error(f"      -> Error de conexión en detalle: {e}")
+        logger.error(f"       -> Error de conexión en detalle: {e}")
         return details
     except Exception as e:
-        logger.error(f"      -> Error durante análisis de detalle: {e}")
+        logger.error(f"       -> Error durante análisis de detalle: {e}")
         return details
 
 
-# --- Nivel 1: Scraping Lista (Adaptativo v5.0) ---
+# --- Nivel 1: Scraping Lista (Adaptativo v5.1 - MODO DEBUG) ---
 def parse(source_url: str, category_hint: str, headers: dict = None) -> List[Dict]:
-    """Extractor (Parser) Adaptativo para Banco de Chile v5.0 (Completo)."""
-    logger.info(f"  [Extractor 'bancochile_v1' v5.0 iniciado]")
+    """Extractor (Parser) Adaptativo para Banco de Chile v5.1 (Completo)."""
+    logger.info(f"  [Extractor 'bancochile_v1' v5.1 iniciado]")
     logger.info(f"  -> [Nivel 1] Procesando URL lista: {source_url}")
 
     if sync_playwright is None:
@@ -125,26 +134,44 @@ def parse(source_url: str, category_hint: str, headers: dict = None) -> List[Dic
     if "/mascotas" in source_url:
         title_selector = MASCOTAS_TITLE_SELECTOR
         discount_selector = MASCOTAS_DISCOUNT_SELECTOR
-        logger.info("    -> Usando selectores 'Patrón 1' (Mascotas)")
+        logger.info("     -> Usando selectores 'Patrón 1' (Mascotas)")
     elif any(s in source_url for s in ["/sabores", "/panoramas", "/viajes", "/bienestar", "/sustentable", "/delivery", "/marcas"]):
         title_selector = PATRON2_TITLE_SELECTOR
         discount_selector = PATRON2_DISCOUNT_SELECTOR
-        logger.info(f"    -> Usando selectores 'Patrón 2' (Sabores, Panoramas, etc.)")
+        logger.info(f"     -> Usando selectores 'Patrón 2' (Sabores, Panoramas, etc.)")
     else: # Default
         title_selector = MASCOTAS_TITLE_SELECTOR 
         discount_selector = MASCOTAS_DISCOUNT_SELECTOR
-        logger.warning(f"    -> URL no reconocida. Usando selectores por defecto (Patrón 1).")
+        logger.warning(f"     -> URL no reconocida. Usando selectores por defecto (Patrón 1).")
         
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True) 
+        # --- ¡CAMBIO CLAVE 1! ---
+        # headless=False abrirá una ventana de navegador para ver qué pasa.
+        browser = p.chromium.launch(headless=False) 
         context = browser.new_context(user_agent=headers.get('User-Agent') if headers else None)
         page = context.new_page()
 
         try:
-            logger.info(f"  -> Navegando a {source_url} con navegador virtual...")
-            page.goto(source_url, timeout=30000, wait_until='domcontentloaded') 
+            logger.info(f"  -> Navegando a {source_url} con navegador virtual (¡VISIBLE!)...")
+            
+            page.goto(source_url, timeout=60000, wait_until='networkidle') 
+            logger.info(f"  -> Página y JS cargados.")
 
-            logger.info(f"  -> Página base cargada. Esperando tarjetas ('{card_selector}')...")
+            # --- ¡CAMBIO CLAVE 2! ---
+            # Intentamos hacer clic en el banner de cookies antes de buscar tarjetas.
+            # Usamos un timeout corto (3s) para no demorar si no existe.
+            try:
+                logger.info(f"  -> Buscando y cerrando banner de cookies...")
+                # Buscamos un botón que contenga el texto "Aceptar".
+                cookie_button_selector = 'button:has-text("Aceptar")'
+                page.click(cookie_button_selector, timeout=3000)
+                logger.info(f"  -> Banner de cookies cerrado.")
+            except PlaywrightTimeoutError:
+                logger.info(f"  -> No se encontró banner de cookies (o ya estaba aceptado).")
+            except Exception as e:
+                logger.warning(f"  -> Error menor al intentar cerrar cookies: {e}")
+
+            logger.info(f"  -> Esperando tarjetas ('{card_selector}')...")
             page.wait_for_selector(card_selector, timeout=WAIT_FOR_SELECTOR_TIMEOUT) 
             logger.info(f"  -> ¡Tarjetas detectadas! Obteniendo HTML...")
 
@@ -167,7 +194,7 @@ def parse(source_url: str, category_hint: str, headers: dict = None) -> List[Dic
                     list_discount_text = safe_get_text(discount_element)
                     detail_url_absolute = urljoin(source_url, detail_url_relative) 
                     
-                    logger.info(f"    * Título: '{list_title}' | Dcto: '{list_discount_text}'")
+                    logger.info(f"     * Título: '{list_title}' | Dcto: '{list_discount_text}'")
                     
                     detail_info = scrape_detail_page(detail_url_absolute, headers)
                     
@@ -202,6 +229,9 @@ def parse(source_url: str, category_hint: str, headers: dict = None) -> List[Dic
         except Exception as e:
             logger.exception(f"  -> Error inesperado durante ejecución Playwright: {e}") 
         finally:
+            # Damos 5 segundos para que veas qué pasó antes de que se cierre
+            logger.info("  -> Navegador virtual (visible) cerrando en 5 seg...")
+            time.sleep(5)
             browser.close() 
             logger.info("  -> Navegador virtual cerrado.")
 
